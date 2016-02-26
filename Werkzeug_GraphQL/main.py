@@ -1,17 +1,19 @@
 import os
+import json
 
 from werkzeug.routing import Map, Rule
 from werkzeug.exceptions import HTTPException
 from werkzeug.wrappers import Request, Response
 from werkzeug.wsgi import SharedDataMiddleware
 from jinja2 import Environment, FileSystemLoader
+from query import schema
 
 
 class GraphQLApp(object):
 
     def __init__(self):
         self.url_map = Map([
-            Rule('/graphql/<extra_path>', endpoint='graphql'),
+            Rule('/graphql', endpoint='graphql'),
             Rule('/graphiql', endpoint='graphiql')
         ])
         self.wsgi_app = SharedDataMiddleware(self.wsgi_app, {
@@ -37,8 +39,10 @@ class GraphQLApp(object):
         except HTTPException, e:
             return e
 
-    def on_graphql(self, request, extra_path):
-        return Response(extra_path)
+    def on_graphql(self, request):
+        query_dict = json.loads(request.data)
+        result = schema.execute(query_dict['query'])
+        return Response(json.dumps(result.data))
 
     def on_graphiql(self, request):
         t = self.jinja_env.get_template('graphiql.html')
